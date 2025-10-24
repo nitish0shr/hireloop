@@ -1,0 +1,20 @@
+{
+  "name": "hireloop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-assisted recruiting workflow platform",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "clean": "pnpm -r clean",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint"
+  },
+  "keywords": ["recruiting", "ats", "hiring", "ai"],
+  "author": "HireLoop Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
