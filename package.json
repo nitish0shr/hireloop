@@ -4,13 +4,19 @@
   "private": true,
   "description": "AI-assisted recruiting workflow platform",
   "scripts": {
-    "build": "pnpm -r build",
-    "dev": "pnpm -r dev",
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
     "clean": "pnpm -r clean",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint"
+    "typecheck": "tsc --noEmit",
+    "lint": "pnpm -r lint",
+    "start": "node dist/index.js"
   },
-  "keywords": ["recruiting", "ats", "hiring", "ai"],
+  "keywords": [
+    "recruiting",
+    "ats",
+    "hiring",
+    "ai"
+  ],
   "author": "HireLoop Team",
   "license": "MIT",
   "engines": {
