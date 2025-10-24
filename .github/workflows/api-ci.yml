@@ -1,0 +1,44 @@
+name: API CI/CD
+
+on:
+  push:
+    branches: [ main, stage-a-backend ]
+    paths:
+      - 'apps/api/**'
+      - '.github/workflows/api-ci.yml'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - uses: pnpm/action-setup@v2
+      with:
+        version: 8
+    
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'pnpm'
+    
+    - name: Install dependencies
+      run: pnpm install
+    
+    - name: Type check
+      run: pnpm typecheck
+    
+    - name: Build
+      run: pnpm build
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: api-build
+        path: apps/api/dist

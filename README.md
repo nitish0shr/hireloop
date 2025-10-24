@@ -323,3 +323,83 @@ For setup assistance or issues:
 ---
 
 **Last Updated**: October 24, 2025
+
+---
+
+## 🚀 Stage A — Backend & Database [IN PROGRESS]
+
+### ✅ Completed Components
+
+#### Database Schema (Prisma + PostgreSQL)
+- **10 tables implemented**: `organizations`, `users`, `jobs`, `candidates`, `applications`, `sequences`, `messages`, `replies`, `consents`, `audit_logs`, `events`
+- Privacy-first design with SHA-256 hashed PII (email/phone)
+- Full relational integrity with cascading deletes
+- Location: `apps/api/prisma/schema.prisma`
+
+#### Express API Server
+- **Health Check**: `GET /health` → `{ ok: true, timestamp: "..." }`
+- **Jobs API**:
+  - `POST /v1/jobs` - Create job
+  - `GET /v1/jobs` - List jobs
+  - `POST /v1/jobs/:id/parse` - Parse JD → rubric (7 keys) + interview questions
+- **Applications API**:
+  - `POST /v1/applications/ingest` - Ingest application
+  - `POST /v1/applications/screen` - Screen candidate → Strong/Consider/Not + score + reasons
+- **Sequences API**:
+  - `POST /v1/sequences` - Create sequence
+  - `POST /v1/sequences/:id/send` - Queue sandbox sends
+- **Replies API**:
+  - `POST /v1/replies/ingest` - Ingest reply
+  - `POST /v1/replies/classify` - Classify → Yes/Maybe/No + confidence
+- **Schedule API**:
+  - `POST /v1/schedule` - Generate slots (TZ-aware) + ICS file
+- **Metrics API**:
+  - `GET /v1/metrics/funnel` - Funnel metrics + time-to-first-interview
+
+#### Business Logic Services
+- **JD Parser** (`src/services/jdParser.ts`):
+  - Extracts 7 rubric criteria with weights summing to 1.0
+  - Generates 3-5 interview questions
+- **Screening Engine** (`src/services/screening.ts`):
+  - Rules-based candidate scoring (0-100)
+  - Labels: Strong (≥75), Consider (50-74), Not (<50)
+  - Positive/negative reason extraction
+- **Reply Classifier** (`src/services/replyClassifier.ts`):
+  - Keyword-based classification: Yes/Maybe/No
+  - Confidence scoring (0-1)
+  - Low confidence (< 0.6) flags for manual review
+- **Scheduling Service** (`src/services/scheduling.ts`):
+  - Generates 3 time slots (timezone-aware)
+  - Creates ICS calendar files
+  - Ready for Google Calendar API integration
+
+#### CI/CD Pipeline
+- GitHub Actions workflow: `.github/workflows/api-ci.yml`
+- Build steps: install → typecheck → build
+- Artifact upload for deployment
+
+### 📋 Remaining for Stage A Completion
+
+1. **Database Migration** - Generate and apply Prisma migrations to Neon
+2. **Seed Data** - Create demo organization, job, and candidates
+3. **Deployment** - Deploy to Render/Railway with GitHub Actions
+4. **OpenAPI Spec** - Generate API documentation
+5. **Live Testing** - Verify all endpoints return valid JSON
+
+### 🔧 Development
+
+```bash
+cd apps/api
+pnpm install
+pnpm dev        # Start development server
+pnpm build      # Build for production
+pnpm typecheck  # Type checking
+```
+
+### 📝 Environment Variables
+
+See `apps/api/.env.example` for required configuration.
+
+**Sandbox Mode**: Without DATABASE_URL, API runs in-memory mode with mock data.
+
+---
