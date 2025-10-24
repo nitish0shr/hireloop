@@ -1,0 +1,184 @@
+// HireLoop Database Schema - Stage A
+// 10 tables for complete ATS functionality
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  jobs        Job[]
+  candidates  Candidate[]
+  sequences   Sequence[]
+  consents    Consent[]
+  auditLogs   AuditLog[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  name           String
+  role           String   @default("member")
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Job {
+  id             String   @id @default(uuid())
+  title          String
+  description    String   @db.Text
+  rubric         Json?    
+  status         String   @default("active")
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@map("jobs")
+}
+
+model Candidate {
+  id             String   @id @default(uuid())
+  emailHash      String
+  phoneHash      String?
+  name           String
+  resumeUrl      String?
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  applications Application[]
+  replies      Reply[]
+  events       Event[]
+
+  @@unique([emailHash, organizationId])
+  @@map("candidates")
+}
+
+model Application {
+  id          String   @id @default(uuid())
+  jobId       String
+  candidateId String
+  label       String   @default("pending")
+  score       Float?
+  reasons     Json?
+  status      String   @default("new")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, candidateId])
+  @@map("applications")
+}
+
+model Sequence {
+  id             String   @id @default(uuid())
+  name           String
+  steps          Json
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages     Message[]
+
+  @@map("sequences")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  sequenceId String
+  subject    String
+  body       String   @db.Text
+  status     String   @default("queued")
+  sentAt     DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Reply {
+  id          String   @id @default(uuid())
+  candidateId String
+  messageText String   @db.Text
+  label       String?
+  confidence  Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("replies")
+}
+
+model Consent {
+  id             String   @id @default(uuid())
+  emailHash      String
+  unsubscribed   Boolean  @default(false)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([emailHash, organizationId])
+  @@map("consents")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  entity         String
+  entityId       String
+  action         String
+  changes        Json?
+  userId         String?
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  candidateId String
+  title       String
+  start       DateTime
+  end         DateTime
+  location    String?
+  externalId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("events")
+}
