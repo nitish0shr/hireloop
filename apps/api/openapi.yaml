@@ -1,0 +1,438 @@
+openapi: 3.0.3
+info:
+  title: HireLoop API
+  description: |
+    REST API for HireLoop - An ATS and recruitment automation platform.
+    
+    Features:
+    - Job posting management
+    - Application ingestion with deduplication
+    - Candidate screening with automated scoring
+    - Email outreach sequences with compliance guardrails
+    - Reply classification and triage
+    - Interview scheduling with calendar integration
+    - Analytics and funnel metrics
+  version: 1.0.0
+  contact:
+    name: HireLoop Support
+    url: https://github.com/nitish0shr/hireloop
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+  - url: https://api-hireloop.onrender.com
+    description: Production server (Render)
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns API health status and uptime
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  timestamp:
+                    type: string
+                    format: date-time
+                  uptime:
+                    type: number
+                  environment:
+                    type: string
+  /v1/jobs:
+    post:
+      tags:
+        - Jobs
+      summary: Create a new job posting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                requirements:
+                  type: array
+                  items:
+                    type: string
+                location:
+                  type: string
+      responses:
+        '201':
+          description: Job created successfully
+        '400':
+          description: Invalid input
+    get:
+      tags:
+        - Jobs
+      summary: Get all jobs
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+  /v1/jobs/{id}:
+    get:
+      tags:
+        - Jobs
+      summary: Get a specific job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job details
+        '404':
+          description: Job not found
+  /v1/jobs/{id}/parse:
+    post:
+      tags:
+        - Jobs
+      summary: Parse job description and generate rubric
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Parsed job with rubric and questions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                  rubric:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                        description:
+                          type: string
+                        weight:
+                          type: number
+                  interviewQuestions:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          description: Job not found
+  /v1/applications/ingest:
+    post:
+      tags:
+        - Applications
+      summary: Ingest new application with deduplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jobId
+                - email
+              properties:
+                jobId:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                linkedInUrl:
+                  type: string
+                resume:
+                  type: string
+                coverLetter:
+                  type: string
+      responses:
+        '201':
+          description: Application ingested
+        '409':
+          description: Duplicate application
+  /v1/screen:
+    post:
+      tags:
+        - Screening
+      summary: Screen a candidate application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                applicationId:
+                  type: string
+                application:
+                  type: object
+                job:
+                  type: object
+      responses:
+        '200':
+          description: Screening result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  score:
+                    type: number
+                  label:
+                    type: string
+                    enum: [Strong, Consider, Not]
+                  reasons:
+                    type: array
+                    items:
+                      type: string
+  /v1/sequences:
+    post:
+      tags:
+        - Sequences
+      summary: Create outreach sequence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - steps
+              properties:
+                name:
+                  type: string
+                jobId:
+                  type: string
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      dayOffset:
+                        type: integer
+                      channel:
+                        type: string
+                        enum: [email]
+                      template:
+                        type: string
+                guardrails:
+                  type: object
+                  properties:
+                    quietHours:
+                      type: object
+                      properties:
+                        start:
+                          type: string
+                        end:
+                          type: string
+                    perDayCap:
+                      type: integer
+                    respectUnsubscribe:
+                      type: boolean
+      responses:
+        '201':
+          description: Sequence created
+    get:
+      tags:
+        - Sequences
+      summary: Get all sequences
+      responses:
+        '200':
+          description: List of sequences
+  /v1/sequences/{id}/send:
+    post:
+      tags:
+        - Sequences
+      summary: Queue sends for a sequence
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - candidateId
+                - email
+              properties:
+                candidateId:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Sends queued
+        '403':
+          description: Candidate has unsubscribed
+  /v1/replies/ingest:
+    post:
+      tags:
+        - Replies
+      summary: Ingest a reply from candidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - candidateId
+                - email
+                - body
+              properties:
+                candidateId:
+                  type: string
+                sequenceId:
+                  type: string
+                email:
+                  type: string
+                subject:
+                  type: string
+                body:
+                  type: string
+                rawContent:
+                  type: string
+      responses:
+        '201':
+          description: Reply ingested
+  /v1/replies/classify:
+    post:
+      tags:
+        - Replies
+      summary: Classify a reply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                replyId:
+                  type: string
+                reply:
+                  type: object
+      responses:
+        '200':
+          description: Classification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  classification:
+                    type: string
+                    enum: [Yes, Maybe, No]
+                  confidence:
+                    type: number
+                  reasons:
+                    type: array
+                    items:
+                      type: string
+                  needsReview:
+                    type: boolean
+  /v1/schedule:
+    post:
+      tags:
+        - Schedule
+      summary: Create scheduling proposal and calendar event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - candidateId
+                - candidateEmail
+              properties:
+                candidateId:
+                  type: string
+                candidateEmail:
+                  type: string
+                interviewerEmail:
+                  type: string
+                proposedSlots:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      start:
+                        type: string
+                        format: date-time
+                      end:
+                        type: string
+                        format: date-time
+                timezone:
+                  type: string
+                createEvent:
+                  type: boolean
+                selectedSlot:
+                  type: integer
+      responses:
+        '200':
+          description: Schedule created
+  /v1/metrics/funnel:
+    get:
+      tags:
+        - Metrics
+      summary: Get funnel metrics for dashboard
+      responses:
+        '200':
+          description: Funnel metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: object
+                  candidates:
+                    type: object
+                  timeToFirstInterview:
+                    type: object
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
