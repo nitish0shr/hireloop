@@ -13,7 +13,6 @@
     "next": "14.2.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@hireloop/common": "workspace:*",
     "framer-motion": "^11.0.0"
   },
   "devDependencies": {
