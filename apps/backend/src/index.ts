@@ -2,16 +2,22 @@ import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 
+// Initialize express app and middleware
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Initialize Supabase client
+// Initialize Supabase client using environment variables.
+// Assumes SUPABASE_URL and SUPABASE_SERVICE_KEY are set in the environment.
 const supabaseUrl = process.env.SUPABASE_URL as string;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY as string;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Jobs: create
+/**
+ * Create a Job.
+ * Inserts a row into the `jobs` table with jd_text and file_url.
+ * Returns id, publicUrl and externalId.
+ */
 app.post('/jobs/create', async (req, res) => {
   const { jdText, fileUrl } = req.body;
   try {
@@ -20,7 +26,9 @@ app.post('/jobs/create', async (req, res) => {
       .insert({ jd_text: jdText, file_url: fileUrl })
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     res.json({
       id: data.id,
       publicUrl: `https://example.com/job/${data.id}`,
@@ -32,7 +40,10 @@ app.post('/jobs/create', async (req, res) => {
   }
 });
 
-// Jobs: publish
+/**
+ * Publish a Job.
+ * Sets the `published` flag on a job record.
+ */
 app.post('/jobs/publish', async (req, res) => {
   const { jobId } = req.body;
   try {
@@ -42,7 +53,9 @@ app.post('/jobs/publish', async (req, res) => {
       .eq('id', jobId)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     res.json({
       jobId: data.id,
       publicUrl: `https://example.com/job/${data.id}`,
@@ -54,13 +67,42 @@ app.post('/jobs/publish', async (req, res) => {
   }
 });
 
-// Candidates: ingest
-app.post('/candidates/ingest', (req, res) => {
+/**
+ * Ingest a candidate.
+ * Inserts a new candidate with stage 'applied'.
+ */
+app.post('/candidates/ingest', async (req, res) => {
   const { jobId, fileUrl, emailParse, profile } = req.body;
-  res.json({ id: 'cand_dummy', jobId, status: 'ingested' });
+  try {
+    const { data, error } = await supabase
+      .from('candidates')
+      .insert({
+        job_id: jobId,
+        file_url: fileUrl,
+        email_parse: emailParse,
+        profile,
+        stage: 'applied',
+      })
+      .select()
+      .single();
+    if (error) {
+      throw error;
+    }
+    res.json({
+      id: data.id,
+      jobId: data.job_id,
+      status: 'ingested',
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal error' });
+  }
 });
 
-// Candidates: score
+/**
+ * Score a candidate.
+ * Returns stubbed scoring data.
+ */
 app.post('/candidates/score', (req, res) => {
   const { candId } = req.body;
   res.json({
@@ -72,23 +114,45 @@ app.post('/candidates/score', (req, res) => {
   });
 });
 
-// Pipeline: move
-app.post('/pipeline/move', (req, res) => {
+/**
+ * Move a candidate in the pipeline.
+ */
+app.post('/pipeline/move', async (req, res) => {
   const { candId, toStage } = req.body;
+  try {
+    const { data, error } = await supabase
+      .from('candidates')
+      .update({ stage: toStage })
+      .eq('id', candId)
+      .select()
+      .single();
+    if (error) {
+      throw error;
+    }
+    res.json({
+      candId: data.id,
+      toStage: data.stage,
+      activityId: `activity_${data.id}_${data.stage}`,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+/**
+ * Send outreach.
+ */
+app.post('/outreach/send', (req, res) => {
+  const { candId, step } = req.body;
   res.json({
-    candId,
-    toStage,
-    activityId: `activity_${candId}_${toStage}`,
+    messageId: `message_${candId}_${step}`,
   });
 });
 
-// Outreach: send
-app.post('/outreach/send', (req, res) => {
-  const { candId, step } = req.body;
-  res.json({ messageId: `message_${candId}_${step}` });
-});
-
-// Schedule: propose
+/**
+ * Propose interview slots.
+ */
 app.post('/schedule/propose', (req, res) => {
   const { candId, recruiterId } = req.body;
   const now = Date.now();
@@ -104,7 +168,9 @@ app.post('/schedule/propose', (req, res) => {
   res.json({ slots });
 });
 
-// Schedule: confirm
+/**
+ * Confirm an interview slot.
+ */
 app.post('/schedule/confirm', (req, res) => {
   const { candId, slotId } = req.body;
   res.json({
@@ -113,7 +179,9 @@ app.post('/schedule/confirm', (req, res) => {
   });
 });
 
-// Reports: roleHealth
+/**
+ * Role health report.
+ */
 app.post('/reports/roleHealth', (req, res) => {
   const { jobId } = req.body;
   res.json({
@@ -125,12 +193,17 @@ app.post('/reports/roleHealth', (req, res) => {
   });
 });
 
-// Prep: pack
+/**
+ * Generate a prep pack.
+ */
 app.post('/prep/pack', (req, res) => {
   const { candId } = req.body;
-  res.json({ pdfUrl: `https://example.com/prep/${candId}.pdf` });
+  res.json({
+    pdfUrl: `https://example.com/prep/${candId}.pdf`,
+  });
 });
 
+// Start the server
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`Backend service listening on port ${port}`);
